@@ -1,140 +1,39 @@
-import Header from "./Header";
-import Content from "./Content";
-import Footer from "./Footer";
-import { useState, useEffect } from 'react'
-import AddItem from "./AddItem";
-import SearchItem from "./SearchItem";
-import ApiRequest from "./ApiRequest";
+import React, { useState, useEffect } from 'react'
+import ImageCard from './components/ImageCard'
+import ImageSearch from './components/ImageSearch'
 
 
 function App() {
 
-  const API_URL = 'http://localhost:3500/items'
-
-  const [items, setItems] = useState([])
-
-  const [newItem, setnewItem] = useState('')
-
-  const [search, setSearch] = useState('')
-
-  const [isloading, setisLoading] = useState(true)
-
-  const [fetchError, serFetchError] = useState(null)
-
+  const [images, setImages] = useState([])
+  const [isLoading, setIsloading] = useState(true)
+  const [term, setTerm] = useState('')
 
   useEffect(()=>{
-    const fetchItems = async () => {
-      try {
-        const response = await fetch(API_URL)
-        if (!response.ok) throw Error("Data not received")
-        const listItems = await response.json()
-        setItems(listItems)
-      } catch(err){
-           serFetchError(err.message)
-      } finally{
-          setisLoading(false)
-      }
-    }
-    
-    setTimeout(()=>{
-      (async ()=> await fetchItems())()
+    fetch(`https://pixabay.com/api/?key=${process.env.REACT_APP_PIXABAY_API_KEY}&q=${term}&image_type=photo&pretty=true`)
+       .then(res=> res.json())
+       .then(data=> {
+           setImages(data.hits)
+           setIsloading(false)
+           console.log(data.hits)
+       })
+       .catch(err=> console.log(err))
+  },[term])
 
-    },2000)
-
-  
-  },[])
-
-  const addItem = async (item) => {
-    const id = items.length ? items[items.length-1].id+1 : 1
-    const addnewItem = {id, checked:false, item}
-    const listItems = [...items, addnewItem]
-    setItems(listItems)
-
-    const postOptions = {
-      method: 'POST',
-      headers: {
-        'Content-Type':'application/json'
-      },
-      body: JSON.stringify(addnewItem)
-    }
-
-    const result = await ApiRequest(API_URL,postOptions)
-    if(result) serFetchError(result)
-    
-  }
-
-  const handleCheck = async (id)=>{
-    const listItems = items.map((item)=>
-       item.id===id ? {...item, checked:!item.checked} : item
-    )
-    setItems(listItems)
-    
-    const myitem = listItems.filter((item) => item.id===id)
-    console.log(myitem)
-    const updateOptions = {
-      method: 'PATCH',
-      headers: {
-        'Content-Type':'application/json'
-      },
-      body: JSON.stringify({checked:myitem[0].checked})
-    }
-
-    const reqUrl = `${API_URL}/${id}`
-    
-
-    const result = await ApiRequest(reqUrl,updateOptions)
-    if(result) serFetchError(result)
-
-    
-  }
-
-  const handleDelete = async (id)=>{
-    const listItems = items.filter((item)=>
-       item.id!==id
-    )
-    setItems(listItems)
-    const deleteOptions = { method: 'DELETE' };
-    const reqUrl = `${API_URL}/${id}`;
-    const result = await ApiRequest(reqUrl, deleteOptions);
-    if (result) serFetchError(result);
-    
-    
-  }
-
-  const handleSubmit = (e)=>{
-    e.preventDefault()
-    addItem(newItem)
-    setnewItem('')
-  }
-  
- 
   return (
-    <div className="flex flex-col h-screen justify-center items-center  mx-w-lg border-8 border-green-500 m-auto ml-24 mr-24">
-       <Header title="Raja to do list"/>  
-       <AddItem
-          newItem={newItem}
-          setnewItem={setnewItem}
-          handleSubmit = {handleSubmit} 
-       />
-       <SearchItem
-          search={search}
-          setSearch={setSearch}
-       />
-       <main className='w-full border-4 border-red-500 flex flex-col grow justify-center items-center overflow-y-auto'>
-          {fetchError && <p>{`Error: ${fetchError}`}</p>}
-          {isloading && <p>Loading items....</p>}
-          {!isloading && !fetchError && <Content 
-              items={items.filter(item => ((item.item).toLowerCase()).includes(search.toLowerCase()))}
-              handleCheck={handleCheck}
-              handleDelete={handleDelete}
-
-          />}
-        </main>
-       <Footer 
-       length={items.length}/>
-    </div>
-
+    <div className="container mx-auto border-4 border-red-700">
+      <ImageSearch searchText={(text)=>setTerm(text)}/>
+      {!isLoading && images.length ===0 && <h1 className="text-6xl text-center mx-auto mt-32">No images Found</h1>}
+      {isLoading ? <h1 className="text-6xl text-center mx-auto mt-32">Loading.....</h1> : 
+        <div className="grid grid-cols-3 gap-4">
+        {images.map(image => (
+          <ImageCard key={image.id} image={image}/>
+        ))}
+        </div>}
+    </div> 
+   
+    
   )
 }
 
-export default App;
+export default App
